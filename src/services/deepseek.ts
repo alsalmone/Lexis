@@ -76,11 +76,7 @@ async function callDeepSeek(
 
   const data = await res.json();
   const content: string = data?.choices?.[0]?.message?.content ?? '';
-  console.log('[DeepSeek raw response]', content.slice(0, 500));
-  console.log('[DeepSeek raw response]', content.slice(0, 2000)); // Added by Oscar for debugging longer responses
-  const parsed = JSON.parse(content) as DeepSeekResponse;
-  console.log('[DeepSeek segments]', parsed?.segments?.slice(0, 5));
-  return parsed;
+  return JSON.parse(content) as DeepSeekResponse;
 }
 
 function validateSegments(
@@ -121,7 +117,6 @@ export async function processChunk(
   const attempt = async (): Promise<TextSegment[]> => {
     const response = await callDeepSeek(text, density, apiKey);
     if (!validateSegments(response.segments, text)) {
-      console.error('[DeepSeek] validation failed, segments:', response.segments);
       throw new Error('Invalid segments from DeepSeek');
     }
     return response.segments;
@@ -129,14 +124,12 @@ export async function processChunk(
 
   try {
     return await attempt();
-  } catch (err) {
-    console.error('[DeepSeek] attempt 1 failed:', err);
+  } catch {
     // One retry after 2 s
     await new Promise((r) => setTimeout(r, 2000));
     try {
       return await attempt();
-    } catch (err2) {
-      console.error('[DeepSeek] attempt 2 failed, using fallback:', err2);
+    } catch {
       return fallback;
     }
   }

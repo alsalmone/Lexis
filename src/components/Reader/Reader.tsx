@@ -63,7 +63,6 @@ export function Reader() {
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        console.log('[IO] entries:', entries.length, 'intersecting:', entries.filter(e => e.isIntersecting).length);
         for (const entry of entries) {
           if (!entry.isIntersecting) continue;
           const idx = Number((entry.target as HTMLElement).dataset.idx);

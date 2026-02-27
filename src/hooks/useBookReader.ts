@@ -112,7 +112,6 @@ export function useBookReader(book: GutenbergBook | null, density: number, apiKe
 
       enqueue(idx: number) {
         const para = paragraphsRef.current[idx];
-        console.log(`[enqueue] idx=${idx} status=${para?.status} paras=${paragraphsRef.current.length}`);
         if (!para || para.status !== 'idle') return;
         if (inFlightRef.current.has(idx)) return;
         if (queueRef.current.includes(idx)) return;
@@ -137,7 +136,6 @@ export function useBookReader(book: GutenbergBook | null, density: number, apiKe
         const apiKey = apiKeyRef.current;
         const density = densityRef.current;
         const chIdx = chapterIdxRef.current;
-        console.log(`[process] idx=${idx} book=${!!book} apiKey=${!!apiKey} density=${density}`);
 
         const done = () => {
           inFlightRef.current.delete(idx);
@@ -146,7 +144,7 @@ export function useBookReader(book: GutenbergBook | null, density: number, apiKe
         };
 
         try {
-          if (!book || !apiKey) { console.warn('[process] early exit: no book or apiKey'); done(); return; }
+          if (!book || !apiKey) { done(); return; }
 
           const cached = readCache(book.id, chIdx, idx, density);
           if (cached) {
