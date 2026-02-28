@@ -13,19 +13,32 @@ interface DeepSeekResponse {
 // across all requests in a session (cached tokens process ~10× faster).
 const SYSTEM_PROMPT = `You are a language-learning text processor. Substitute Polish words into English paragraphs.
 
-For each word you replace:
-- Write the actual Polish word in the "text" field — NEVER keep the English word.
-- Choose the inflected form correct in context (case, gender, number, tense).
+Word selection guidelines:
+- Prefer high-frequency, common everyday vocabulary (CEFR A1–B2 level) over rare, literary, or uncommon words. Prioritise words a beginner would encounter most often.
+- You MAY replace common function words in addition to content words:
+  Prepositions: in→w, on→na, to→do, from→z/od, for→dla, through→przez, after→po, about→o, without→bez, before→przed
+  Conjunctions: but→ale, that→że, because→bo, so→więc, or→lub
+- Never replace: proper nouns, numbers, punctuation, dialogue attribution words (said, asked, replied), words inside quoted speech.
 
-Never replace: proper nouns, numbers, punctuation, function words (the, a, an, of, to, that, which, was, is, are, be, been, by, with, at, from, in, on, for, and, but, or, not), dialogue attribution words (said, asked, replied), words inside quoted speech.
+For each word you replace:
+- Write the actual Polish word in the "text" field — NEVER keep the English word in a "pl" segment.
+- Choose the inflected form correct in context (case, gender, number, tense).
 
 Return only valid JSON, no markdown fences.
 
 Example — input: "The dog runs fast."
 {"segments":[{"text":"The ","lang":"en","baseEn":""},{"text":"pies","lang":"pl","baseEn":"dog"},{"text":" ","lang":"en","baseEn":""},{"text":"biegnie","lang":"pl","baseEn":"run"},{"text":" fast.","lang":"en","baseEn":""}]}`;
 
-function buildMessages(paragraphText: string, density: number) {
-  const user = `Replace approximately ${density}% of content words (nouns, verbs, adjectives, adverbs) with Polish equivalents.
+function buildMessages(
+  paragraphText: string,
+  density: number,
+  reinforceWords: Array<{ en: string; pl: string }>,
+) {
+  const reinforceLine = reinforceWords.length > 0
+    ? `Reinforce list — always replace these English words with the given Polish equivalents whenever they appear: ${reinforceWords.map((w) => `${w.en}→${w.pl}`).join(', ')}\n\n`
+    : '';
+
+  const user = `${reinforceLine}Replace approximately ${density}% of words (prioritising common vocabulary and function words from the guidelines) with Polish equivalents.
 
 Return JSON: {"segments":[{"text":string,"lang":"en"|"pl","baseEn":string}]}
 - "pl" segments: "text" = the Polish word, "baseEn" = English base form.
@@ -46,6 +59,7 @@ async function callDeepSeek(
   paragraphText: string,
   density: number,
   apiKey: string,
+  reinforceWords: Array<{ en: string; pl: string }>,
 ): Promise<DeepSeekResponse> {
   const res = await fetch(DEEPSEEK_URL, {
     method: 'POST',
@@ -55,7 +69,7 @@ async function callDeepSeek(
     },
     body: JSON.stringify({
       model: MODEL,
-      messages: buildMessages(paragraphText, density),
+      messages: buildMessages(paragraphText, density, reinforceWords),
       response_format: { type: 'json_object' },
       temperature: 0.3,
     }),
@@ -97,6 +111,7 @@ export async function processChunk(
   paragraphText: string,
   density: number,
   apiKey: string,
+  reinforceWords: Array<{ en: string; pl: string }> = [],
 ): Promise<TextSegment[]> {
   const fallback: TextSegment[] = [{ text: paragraphText, lang: 'en', baseEn: '' }];
 
@@ -107,7 +122,7 @@ export async function processChunk(
       : paragraphText;
 
   const attempt = async (): Promise<TextSegment[]> => {
-    const response = await callDeepSeek(text, density, apiKey);
+    const response = await callDeepSeek(text, density, apiKey, reinforceWords);
     if (!validateSegments(response.segments, text)) {
       throw new Error('Invalid segments from DeepSeek');
     }

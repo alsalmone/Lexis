@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { streamBookChapters } from '@/services/gutenberg';
 import { processChunk } from '@/services/deepseek';
-import { recordWords } from '@/services/vocabulary';
+import { recordWords, getTopWords } from '@/services/vocabulary';
 import type { GutenbergBook, Chapter, TextSegment, ProcessingStatus } from '@/types';
 
 const MAX_CONCURRENT = 4;
@@ -158,7 +158,7 @@ export function useBookReader(book: GutenbergBook | null, density: number, apiKe
           const rawText = paragraphsRef.current[idx]?.raw ?? '';
           if (!rawText) { done(); return; }
 
-          const segments = await processChunk(rawText, density, apiKey);
+          const segments = await processChunk(rawText, density, apiKey, getTopWords(20));
           writeCache(book.id, chIdx, idx, density, segments);
           recordWords(segments);
           patchParagraph(idx, { segments, status: 'done' });
