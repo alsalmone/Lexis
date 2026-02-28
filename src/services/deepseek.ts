@@ -9,35 +9,27 @@ interface DeepSeekResponse {
   segments: TextSegment[];
 }
 
+// Static system prompt — never changes, so DeepSeek can prefix-cache it
+// across all requests in a session (cached tokens process ~10× faster).
+const SYSTEM_PROMPT = `You are a language-learning text processor. Substitute Polish words into English paragraphs.
+
+For each word you replace:
+- Write the actual Polish word in the "text" field — NEVER keep the English word.
+- Choose the inflected form correct in context (case, gender, number, tense).
+
+Never replace: proper nouns, numbers, punctuation, function words (the, a, an, of, to, that, which, was, is, are, be, been, by, with, at, from, in, on, for, and, but, or, not), dialogue attribution words (said, asked, replied), words inside quoted speech.
+
+Return only valid JSON, no markdown fences.
+
+Example — input: "The dog runs fast."
+{"segments":[{"text":"The ","lang":"en","baseEn":""},{"text":"pies","lang":"pl","baseEn":"dog"},{"text":" ","lang":"en","baseEn":""},{"text":"biegnie","lang":"pl","baseEn":"run"},{"text":" fast.","lang":"en","baseEn":""}]}`;
+
 function buildMessages(paragraphText: string, density: number) {
-  const system = `You are a language-learning text processor. Your task is to substitute actual Polish words into an English paragraph.
+  const user = `Replace approximately ${density}% of content words (nouns, verbs, adjectives, adverbs) with Polish equivalents.
 
-For approximately ${density}% of content words (nouns, verbs, adjectives, adverbs), you MUST:
-1. REMOVE the English word entirely
-2. WRITE the actual Polish word/inflected form in its place
-
-The "text" field for a Polish segment must contain a real Polish word written in Polish — never the original English word.
-
-Rules:
-- Only replace content words. Never replace: proper nouns, numbers, punctuation, function words (the, a, an, of, to, that, which, was, is, are, be, been, by, with, at, from, in, on, for, and, but, or, not, etc.), dialogue attribution words (said, asked, replied), or words inside quoted speech.
-- Choose the inflected Polish form correct in context (correct case, gender, number, tense).
-- Do not add spaces around substituted words beyond what was in the original.
-- Return only valid JSON with no markdown fences.
-- Each segment must have a maximum of 5 words. (Modified by Oscar)
-
-CORRECT example — input: "The dog runs fast."
-{"segments":[{"text":"The ","lang":"en","baseEn":""},{"text":"pies","lang":"pl","baseEn":"dog"},{"text":" ","lang":"en","baseEn":""},{"text":"biegnie","lang":"pl","baseEn":"run"},{"text":" fast.","lang":"en","baseEn":""}]}
-
-WRONG example (do NOT do this — English words kept in pl segments):
-{"segments":[{"text":"The ","lang":"en","baseEn":""},{"text":"dog","lang":"pl","baseEn":"dog"},{"text":" ","lang":"en","baseEn":""},{"text":"runs","lang":"pl","baseEn":"run"},{"text":" fast.","lang":"en","baseEn":""}]}`;
-
-  const user = `Replace approximately ${density}% of content words in the paragraph below with actual Polish words. Write the Polish word in the "text" field — not the English word.
-
-Return a JSON object: { "segments": [ { "text": string, "lang": "en" | "pl", "baseEn": string } ] }
-- "baseEn" is the English base form for Polish segments (e.g. "dog"); empty string for English segments.
-- For English segments, "text" is copied verbatim from the original (preserving spaces and punctuation).
-- For Polish segments, "text" is the actual Polish word/phrase replacing the English word.
-- The English segments must together preserve all spacing and punctuation from the original.
+Return JSON: {"segments":[{"text":string,"lang":"en"|"pl","baseEn":string}]}
+- "pl" segments: "text" = the Polish word, "baseEn" = English base form.
+- "en" segments: "text" copied verbatim from original; "baseEn" = "".
 
 Paragraph:
 """
@@ -45,7 +37,7 @@ ${paragraphText}
 """`;
 
   return [
-    { role: 'system', content: system },
+    { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content: user },
   ];
 }
@@ -125,8 +117,8 @@ export async function processChunk(
   try {
     return await attempt();
   } catch {
-    // One retry after 2 s
-    await new Promise((r) => setTimeout(r, 2000));
+    // One retry after 1 s
+    await new Promise((r) => setTimeout(r, 1000));
     try {
       return await attempt();
     } catch {

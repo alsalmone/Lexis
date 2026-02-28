@@ -4,7 +4,7 @@ import { processChunk } from '@/services/deepseek';
 import { recordWords } from '@/services/vocabulary';
 import type { GutenbergBook, Chapter, TextSegment, ProcessingStatus } from '@/types';
 
-const MAX_CONCURRENT = 2;
+const MAX_CONCURRENT = 4;
 
 export interface ParagraphState {
   raw: string;
