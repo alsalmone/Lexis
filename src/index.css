@@ -82,6 +82,31 @@ img {
 .polish {
   font-style: italic;
   color: var(--color-polish);
+  position: relative;
+  cursor: help;
+}
+
+.polish[data-en]::after {
+  content: attr(data-en);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-text);
+  color: var(--color-bg);
+  font-family: var(--font-ui);
+  font-style: normal;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.polish[data-en]:hover::after {
+  opacity: 1;
 }
 
 /* ── Utility ───────────────────────────────────────────────── */

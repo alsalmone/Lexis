@@ -9,7 +9,7 @@ export function TextRenderer({ segments }: Props) {
     <p className="reading-text">
       {segments.map((seg, i) =>
         seg.lang === 'pl' ? (
-          <span key={i} className="polish">
+          <span key={i} className="polish" data-en={seg.baseEn || undefined}>
             {seg.text}
           </span>
         ) : (
